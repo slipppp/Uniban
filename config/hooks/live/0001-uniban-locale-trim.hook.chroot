@@ -1,0 +1,42 @@
+#!/bin/sh
+# UniBan - corta locale/man/doc inútil ANTES de instalar o resto
+# Tem que ser o hook 0001 (roda primeiro, antes do 0005 instalar Xfce/Firefox/etc):
+# dpkg só respeita path-exclude no momento em que o pacote é DESEMPACOTADO.
+# Se isso rodasse depois (ex: só no 0020, no final), já era tarde - os .deb do
+# Xfce inteiro, Firefox, etc já teriam desempacotado locale de 100+ idiomas.
+#
+# Antes tinha "localepurge" no 0020, mas ele só limpa retroativamente via
+# trigger do dpkg - se configurado depois que os pacotes grandes já foram
+# instalados, não limpa quase nada. path-exclude evita que o arquivo
+# inútil chegue a ser gravado no disco, então funciona sempre, não importa
+# a ordem dos apt-get install que vierem depois.
+set -e
+
+cat > /etc/dpkg/dpkg.cfg.d/01-uniban-excludes << 'EOF'
+# UniBan: mantém só idioma que a distro usa (pt_BR + en), corta o resto
+path-exclude=/usr/share/locale/*
+path-include=/usr/share/locale/en*
+path-include=/usr/share/locale/pt*
+path-include=/usr/share/locale/locale.alias
+
+# man page ocupa espaço, ninguém lê man page numa distro gamer
+path-exclude=/usr/share/man/*
+
+# doc/changelog de pacote - mantém só copyright (licença, por segurança legal)
+path-exclude=/usr/share/doc/*
+path-include=/usr/share/doc/*/copyright
+
+path-exclude=/usr/share/groff/*
+path-exclude=/usr/share/info/*
+path-exclude=/usr/share/lintian/*
+EOF
+
+# Limpa o que o debootstrap (base Debian mínima) já desempacotou ANTES
+# desse hook rodar - o path-exclude acima só vale pra pacote instalado
+# DAQUI PRA FRENTE.
+find /usr/share/locale -mindepth 1 -maxdepth 1 \
+  ! -name 'en*' ! -name 'pt*' ! -name 'locale.alias' \
+  -exec rm -rf {} + 2>/dev/null || true
+rm -rf /usr/share/man/* /usr/share/groff/* /usr/share/info/* 2>/dev/null || true
+find /usr/share/doc -mindepth 1 -maxdepth 1 -type d \
+  -exec sh -c 'find "$1" -type f ! -name copyright -delete' _ {} \; 2>/dev/null || true

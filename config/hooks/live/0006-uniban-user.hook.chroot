@@ -1,0 +1,36 @@
+#!/bin/sh
+# UniBan - cria o usuário "user" usado pelo autologin do lightdm
+#
+# BUG RAIZ (causa do "pede senha sem eu ter criado senha"):
+# 50-autologin.conf já dizia autologin-user=user, mas em NENHUM lugar do
+# projeto essa conta era realmente criada (useradd/adduser). O comentário
+# antigo no hook de branding assumia que o pacote live-config criava o
+# usuário "user" sozinho no boot - às vezes isso não acontece de forma
+# confiável dependendo de como o live-build monta a imagem. Resultado:
+# lightdm tentava autologin, o usuário "user" não existia, autologin
+# falhava e caía pra tela de login pedindo usuário/senha - senha que
+# nunca foi definida, então login ficava impossível.
+#
+# Esse hook garante a conta de forma explícita e determinística, no
+# mesmo espírito do hook 0005 (não depender de comportamento implícito
+# que pode falhar silencioso).
+set -e
+
+if ! id user >/dev/null 2>&1; then
+  adduser --disabled-password --gecos "" user
+fi
+
+usermod -aG sudo,netdev,audio,video,plugdev,bluetooth,cdrom,lpadmin user 2>/dev/null || true
+
+# Autologin gráfico "sem tela de senha" (é o que o README promete): remove
+# a senha da conta. O autologin do lightdm não passa pelo PAM de senha,
+# então login automático funciona liso sem senha nenhuma. Isso só é seguro
+# porque é uma distro standalone/gamer de single-user, não multiusuário.
+passwd -d user
+
+# Rede de segurança: se por algum motivo o autologin falhar (ex: timeout,
+# crash do lightdm) e cair na tela normal pedindo senha, permite login
+# com senha em branco em vez de travar pedindo uma senha que não existe.
+if [ -f /etc/pam.d/common-auth ] && ! grep -q "pam_unix.so.*nullok" /etc/pam.d/common-auth; then
+  sed -i '/pam_unix\.so/ s/$/ nullok/' /etc/pam.d/common-auth
+fi
