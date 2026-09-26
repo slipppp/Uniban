@@ -1,6 +1,6 @@
 #!/bin/bash
 # UniBan Builder v0.1
-# Roda 1 comando -> sai ISO pronta.
+# Builder des do começo do uniban graças a deus
 set -e
 
 echo "=== UniBan Builder v0.1 ==="
@@ -10,14 +10,13 @@ sudo apt update
 sudo apt install -y live-build live-config live-boot debootstrap \
     xorriso syslinux-common isolinux squashfs-tools curl
 
-# 2. Entra no projeto (assume que este script está na raiz uniban/)
+# 2. Entra no projeto
 cd "$(dirname "$0")"
 
-# 3. Limpa build anterior (precisa vir ANTES do lb config,
-#    senão lb clean apaga marcador de stage "config" e lb build quebra)
+# 3. Limpa build anterior
 sudo lb clean
 
-# 4. Config live-build
+# 4. Config do live
 lb config \
   --distribution trixie \
   --architecture amd64 \
@@ -29,5 +28,5 @@ lb config \
 
 # 5. Build
 sudo lb build 2>&1 | tee build.log
-
+# alivio quando iso aparece
 echo "=== PRONTO. ISO em $(pwd)/live-image-amd64.hybrid.iso ==="
