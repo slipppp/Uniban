@@ -1,4 +1,4 @@
-# UniBan v0.3
+# UniBan v0.2
 
 Debian 13 (Trixie) custom, foco jogo + desempenho + baixo consumo.
 Regra do projeto: 90% Debian puro. Só remove bloat, só adiciona o essencial.
