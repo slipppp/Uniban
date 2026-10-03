@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=UniBan Installer (live)
+Comment=Abre o instalador logo depois do boot, só na ISO live
+Exec=sh -c 'grep -qs boot=live /proc/cmdline && exec /usr/bin/uniban-install-gui'
+Terminal=false
+NoDisplay=true
+OnlyShowIn=XFCE;

@@ -1,0 +1,57 @@
+#!/bin/sh
+# UniBan - instalador + atualizador
+# Instala só o que os dois scripts precisam (sem recomendados, pra ficar leve)
+# e deixa tudo executável. Os scripts em si vêm de includes.chroot
+# (/usr/share/uniban/uniban-install.sh e uniban-update.sh).
+#
+# Por que chmod aqui: o zip/GitHub nem sempre preserva o bit +x dos arquivos
+# do includes.chroot - sem isso os launchers falhariam em silêncio.
+set -e
+
+export DEBIAN_FRONTEND=noninteractive
+
+apt-get update
+apt-get install -y --no-install-recommends \
+    whiptail \
+    parted \
+    dosfstools \
+    e2fsprogs \
+    squashfs-tools \
+    grub-common \
+    grub2-common \
+    grub-pc-bin \
+    grub-efi-amd64-bin \
+    efibootmgr \
+    curl \
+    ca-certificates
+
+chmod 755 /usr/share/uniban/apply-wallpaper.sh \
+          /usr/share/uniban/uniban-install.sh \
+          /usr/share/uniban/uniban-install-gui.py \
+          /usr/bin/uniban-install-gui \
+          /usr/share/uniban/uniban-update.sh \
+          /usr/bin/uniban-install \
+          /usr/bin/uniban-update
+
+# Live: usuário "user" roda instalador/atualizador via sudo sem senha
+# (a conta não tem senha). O instalador apaga esse arquivo no sistema
+# instalado, onde o sudo volta a pedir a senha do usuário.
+cat > /etc/sudoers.d/uniban-live << 'SUDO'
+user ALL=(root) NOPASSWD: /usr/bin/uniban-install, /usr/bin/uniban-install-gui, /usr/bin/uniban-update, /usr/share/uniban/uniban-install.sh, /usr/share/uniban/uniban-update.sh
+SUDO
+chmod 0440 /etc/sudoers.d/uniban-live
+
+# Atalho do instalador no desktop da sessão live (usuário "user", hook 0006)
+if [ -d /home/user ]; then
+  mkdir -p /home/user/Desktop
+  cp /usr/share/applications/uniban-install.desktop /home/user/Desktop/
+  chmod 755 /home/user/Desktop/uniban-install.desktop
+  chown -R user:user /home/user/Desktop
+fi
+
+# GUI do instalador: python3-gi + typelib GTK3 (blueman já puxa; garante explícito, ~sem custo)
+apt-get install -y --no-install-recommends python3 python3-gi gir1.2-gtk-3.0
+python3 -c "import gi; gi.require_version('Gtk','3.0'); from gi.repository import Gtk" \
+  || { echo "ERRO: python3-gi/GTK3 não funciona (instalador gráfico)"; exit 1; }
+
+apt-get clean

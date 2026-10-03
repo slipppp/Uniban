@@ -1,0 +1,98 @@
+#!/bin/sh
+# UniBan branding - hostname, os-release, fastfetch
+set -e
+
+export DEBIAN_FRONTEND=noninteractive
+
+# --- Garante hostname certo (redundância, caso --hostname do lb config falhe) ---
+echo "uniban" > /etc/hostname
+sed -i 's/127.0.1.1.*debian/127.0.1.1\tuniban/' /etc/hosts 2>/dev/null || \
+  echo "127.0.1.1	uniban" >> /etc/hosts
+
+# --- os-release: sistema se identifica como UniBan, mas mantém compat apt/Debian ---
+cat > /etc/os-release << 'EOF'
+PRETTY_NAME="UniBan GNU/Linux 13 (trixie)"
+NAME="UniBan"
+VERSION_ID="0.35"
+VERSION="0.35 (trixie)"
+VERSION_CODENAME=trixie
+ID=uniban
+ID_LIKE=debian
+HOME_URL="https://uniban.example"
+SUPPORT_URL="https://uniban.example/support"
+BUG_REPORT_URL="https://uniban.example/bugs"
+EOF
+
+# --- fastfetch: instala + config vermelho ---
+apt-get update
+apt-get install -y fastfetch
+
+# logo custom uniban = o ASCII truecolor que você já gerou (chafa) e mandou
+# pronto - salvo como /usr/share/uniban/logo-red.ans (escape codes ANSI
+# reais, não como texto). Usa "type": "raw" do fastfetch, que só imprime
+# o arquivo como está, sem precisar converter PNG de novo em runtime -
+# funciona mesmo se o build do fastfetch não tiver suporte a chafa/
+# imagemagick compilado. width/height calculados a partir do próprio
+# arquivo (19 linhas x 39 colunas visíveis) - se trocar o ascii, meça de
+# novo com `cat arquivo.ans | sed -r "s/\x1b\[[0-9;?]*[a-zA-Z]//g" | awk '{print length}'`.
+#
+# BUG ANTIGO CORRIGIDO (config ia pra /etc/fastfetch/config.jsonc, que o
+# fastfetch nunca lê - só lê ~/.config/fastfetch/config.jsonc de cada
+# usuário): esse fix continua valendo aqui embaixo, vai pro /etc/skel
+# (novos usuários) e é copiado pro /home/user também (usuário do
+# autologin, já criado pelo hook 0006 antes deste).
+FASTFETCH_CFG='{
+    "$schema": "https://github.com/fastfetch-cli/fastfetch/raw/dev/doc/json_schema.json",
+    "logo": {
+        "type": "raw",
+        "source": "/usr/share/uniban/logo-red.ans",
+        "width": 39,
+        "height": 19
+    },
+    "display": {
+        "color": {
+            "keys": "red"
+        }
+    },
+    "modules": [
+        "title",
+        "separator",
+        "os",
+        "host",
+        "kernel",
+        "uptime",
+        "packages",
+        "shell",
+        "de",
+        "wm",
+        "cpu",
+        "gpu",
+        "memory",
+        "disk",
+        "break",
+        "colors"
+    ]
+}'
+
+mkdir -p /etc/skel/.config/fastfetch
+printf '%s\n' "$FASTFETCH_CFG" > /etc/skel/.config/fastfetch/config.jsonc
+
+# --- roda fastfetch ao abrir terminal (skel = novos usuários, e usuário live "user") ---
+if ! grep -q "fastfetch" /etc/skel/.bashrc 2>/dev/null; then
+  echo "" >> /etc/skel/.bashrc
+  echo "# UniBan - mostra info sistema ao abrir terminal" >> /etc/skel/.bashrc
+  echo '[ -f "$HOME/.config/uniban/no-fastfetch" ] || fastfetch' >> /etc/skel/.bashrc
+fi
+
+# Usuário "user" já foi criado pelo hook 0006 (roda antes deste), então
+# /home/user já existe de verdade aqui - copia config + .bashrc e ajusta
+# dono (senão fica root:root e o usuário não consegue nem ler o arquivo).
+if [ -d /home/user ]; then
+  mkdir -p /home/user/.config/fastfetch
+  printf '%s\n' "$FASTFETCH_CFG" > /home/user/.config/fastfetch/config.jsonc
+  if ! grep -q "fastfetch" /home/user/.bashrc 2>/dev/null; then
+    echo "" >> /home/user/.bashrc
+    echo '[ -f "$HOME/.config/uniban/no-fastfetch" ] || fastfetch' >> /home/user/.bashrc
+  fi
+  chown -R user:user /home/user/.config /home/user/.bashrc
+fi

@@ -1,0 +1,25 @@
+#!/bin/sh
+# UniBan - terminal: fundo transparente por padrão (ligado) + ferramenta de config.
+# fastfetch já roda no .bashrc (hook 0007) com guarda: o arquivo
+# ~/.config/uniban/no-fastfetch desliga. Tudo se liga/desliga em
+#   uniban-terminal-config   (janela "Configurar Terminal UniBan" ou linha de comando)
+# Transparência real precisa do compositor do xfwm4 (use_compositing, hook 0030).
+set -e
+
+TRC='[Configuration]
+BackgroundMode=TERMINAL_BACKGROUND_TRANSPARENT
+BackgroundDarkness=0.85'
+
+# padrão do sistema (quem não tem terminalrc próprio) + contas novas + conta live
+mkdir -p /etc/xdg/xfce4/terminal /etc/skel/.config/xfce4/terminal
+printf '%s\n' "$TRC" > /etc/xdg/xfce4/terminal/terminalrc
+printf '%s\n' "$TRC" > /etc/skel/.config/xfce4/terminal/terminalrc
+if [ -d /home/user ]; then
+  mkdir -p /home/user/.config/xfce4/terminal
+  printf '%s\n' "$TRC" > /home/user/.config/xfce4/terminal/terminalrc
+  chown -R user:user /home/user/.config
+fi
+
+chmod 755 /usr/bin/uniban-terminal-config
+[ -x /usr/bin/uniban-terminal-config ] || { echo "ERRO: uniban-terminal-config não instalado"; exit 1; }
+grep -q 'no-fastfetch' /etc/skel/.bashrc || { echo "ERRO: .bashrc sem a guarda do fastfetch"; exit 1; }

@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Configurar Terminal UniBan
+Comment=Liga/desliga fastfetch e fundo transparente do terminal
+Exec=/usr/bin/uniban-terminal-config
+Icon=utilities-terminal
+Terminal=false
+Categories=Settings;Utility;

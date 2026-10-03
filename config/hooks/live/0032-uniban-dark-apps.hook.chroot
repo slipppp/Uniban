@@ -1,0 +1,40 @@
+#!/bin/sh
+# UniBan - deixa os APPS escuros também (não só janela/painel do Xfce)
+#
+# Por que: Arc-Dark em xsettings/xfwm4 só pega apps GTK3/GTK2. Ficavam claros:
+#   - Firefox: a barra dele segue o tema GTK, mas o CONTEÚDO das páginas
+#     usa "prefers-color-scheme" (claro por padrão).
+#   - Apps GTK4/libadwaita: leem /etc/gtk-4.0 e /etc/skel/.config/gtk-4.0,
+#     ignoram o gtk-3.0.
+# Qt: nenhum app Qt no UniBan (deixado de fora de propósito, sem pacote extra).
+#
+# Reverter no Firefox: Configurações > Geral > Aparência do site > "Claro".
+set -e
+
+GTK4_INI='[Settings]
+gtk-theme-name=Arc-Dark
+gtk-application-prefer-dark-theme=1'
+
+# --- GTK4 / libadwaita: sistema + contas novas + conta live
+mkdir -p /etc/gtk-4.0 /etc/skel/.config/gtk-4.0
+printf '%s\n' "$GTK4_INI" > /etc/gtk-4.0/settings.ini
+printf '%s\n' "$GTK4_INI" > /etc/skel/.config/gtk-4.0/settings.ini
+if [ -d /home/user ]; then
+  mkdir -p /home/user/.config/gtk-4.0
+  printf '%s\n' "$GTK4_INI" > /home/user/.config/gtk-4.0/settings.ini
+  chown -R user:user /home/user/.config/gtk-4.0
+fi
+
+# --- Firefox ESR: UI escura + páginas em modo escuro
+#   ui.systemUsesDarkTheme = 1                                  -> navegador escuro
+#   layout.css.prefers-color-scheme.content-override = 0        -> sites: escuro
+#     (0 = escuro, 1 = claro, 2 = seguir sistema)
+# O usuário ainda muda em Configurações > Aparência do site.
+FF=/usr/lib/firefox-esr
+[ -d "$FF" ] || { echo "ERRO: $FF não existe (firefox-esr instalado?)"; exit 1; }
+mkdir -p "$FF/defaults/pref"
+cat > "$FF/defaults/pref/uniban-dark.js" << 'JS'
+pref("ui.systemUsesDarkTheme", 1);
+pref("layout.css.prefers-color-scheme.content-override", 0);
+JS
+[ -s "$FF/defaults/pref/uniban-dark.js" ] || { echo "ERRO: uniban-dark.js vazio"; exit 1; }

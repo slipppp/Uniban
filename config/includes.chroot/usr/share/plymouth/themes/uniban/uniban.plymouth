@@ -1,0 +1,8 @@
+[Plymouth Theme]
+Name=UniBan
+Description=Logo UniBan sobre fundo preto
+ModuleName=script
+
+[script]
+ImageDir=/usr/share/plymouth/themes/uniban
+ScriptFile=/usr/share/plymouth/themes/uniban/uniban.script

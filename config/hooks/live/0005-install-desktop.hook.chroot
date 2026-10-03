@@ -1,0 +1,52 @@
+#!/bin/sh
+# UniBan v0.2 - instalação forçada do desktop
+# Roda via hook (mais confiável que package-lists, que falhou silenciosamente na v0.1)
+set -e
+
+export DEBIAN_FRONTEND=noninteractive
+
+apt-get update
+
+apt-get install -y \
+    xfce4 \
+    xfce4-terminal \
+    xfce4-taskmanager \
+    xfce4-screenshooter \
+    lightdm \
+    lightdm-gtk-greeter \
+    network-manager \
+    network-manager-gnome \
+    pulseaudio \
+    pulseaudio-utils \
+    pavucontrol \
+    bluetooth \
+    bluez \
+    blueman \
+    cups \
+    firefox-esr \
+    firefox-esr-l10n-pt-br \
+    mesa-utils \
+    mesa-vulkan-drivers \
+    xserver-xorg \
+    xserver-xorg-video-all \
+    xserver-xorg-input-all \
+    sudo \
+    htop \
+    gvfs \
+    gvfs-backends \
+    usbutils \
+    pciutils \
+    file-roller \
+    gnome-disk-utility \
+    x11-xserver-utils
+
+# Garante boot gráfico (não fica preso em tty1)
+systemctl set-default graphical.target
+systemctl enable lightdm
+systemctl enable NetworkManager
+systemctl enable bluetooth
+
+# cups só sobe quando alguém realmente imprime/abre o painel (socket-
+# activation) em vez de ficar residente na RAM o boot inteiro à toa
+systemctl enable cups.socket
+systemctl disable cups.service 2>/dev/null || true

@@ -1,0 +1,152 @@
+#!/usr/bin/python3
+# UniBan - config do terminal: liga/desliga fastfetch e fundo transparente.
+#   uniban-terminal-config                       -> janela (GUI)
+#   uniban-terminal-config status
+#   uniban-terminal-config fastfetch on|off
+#   uniban-terminal-config transparency on|off
+#   uniban-terminal-config opacity 30..100       (opacidade do fundo, %)
+# Vale para terminais NOVOS (abra outro depois de mudar).
+# Não é serviço: abre, grava 2 arquivinhos no seu HOME e fecha (0 RAM em idle).
+#   fastfetch   -> ~/.config/uniban/no-fastfetch (existe = desligado)
+#   transparência -> ~/.config/xfce4/terminal/terminalrc (BackgroundMode / BackgroundDarkness)
+import os, re, sys
+
+USAGE = """uso:
+  uniban-terminal-config                     (janela)
+  uniban-terminal-config status
+  uniban-terminal-config fastfetch on|off
+  uniban-terminal-config transparency on|off
+  uniban-terminal-config opacity 30..100"""
+HOME = os.path.expanduser("~")
+FLAG = os.path.join(HOME, ".config/uniban/no-fastfetch")
+BASHRC = os.path.join(HOME, ".bashrc")
+TRC = os.path.join(HOME, ".config/xfce4/terminal/terminalrc")
+SYS_TRC = "/etc/xdg/xfce4/terminal/terminalrc"
+GUARD = '[ -f "$HOME/.config/uniban/no-fastfetch" ] || fastfetch'
+TRANSP = "TERMINAL_BACKGROUND_TRANSPARENT"
+SOLID = "TERMINAL_BACKGROUND_SOLID"
+
+
+# ------------------------------------------------------------- fastfetch
+def fastfetch_on():
+    return not os.path.exists(FLAG)
+
+
+def set_fastfetch(on):
+    os.makedirs(os.path.dirname(FLAG), exist_ok=True)
+    if on:
+        try: os.remove(FLAG)
+        except FileNotFoundError: pass
+    else:
+        open(FLAG, "w").close()
+    # .bashrc: troca "fastfetch" solto pela versão que respeita o flag (ou acrescenta)
+    try: lines = open(BASHRC).read().split("\n")
+    except FileNotFoundError: lines = []
+    out, seen = [], False
+    for l in lines:
+        if l.strip() == "fastfetch": l = GUARD
+        if l.strip() == GUARD: seen = True
+        out.append(l)
+    if not seen:
+        while out and out[-1] == "": out.pop()
+        out += ["", "# UniBan - mostra info do sistema ao abrir terminal (desligar: uniban-terminal-config)", GUARD, ""]
+    open(BASHRC, "w").write("\n".join(out))
+
+
+# ----------------------------------------------------------- transparência
+def _read(path):
+    try: return open(path).read()
+    except OSError: return ""
+
+
+def _get(key, default=None):
+    for path in (TRC, SYS_TRC):                       # usuário manda; senão padrão do sistema
+        m = re.search(r"^%s=(.*)$" % key, _read(path), re.M)
+        if m: return m.group(1).strip()
+    return default
+
+
+def transparency_on():
+    return _get("BackgroundMode") == TRANSP
+
+
+def opacity():
+    try: return max(30, min(100, round(float(_get("BackgroundDarkness", "0.85")) * 100)))
+    except ValueError: return 85
+
+
+def _set_keys(**kv):
+    os.makedirs(os.path.dirname(TRC), exist_ok=True)
+    txt = _read(TRC) or _read(SYS_TRC) or "[Configuration]\n"
+    if "[Configuration]" not in txt: txt = "[Configuration]\n" + txt
+    for k, v in kv.items():
+        if re.search(r"^%s=" % k, txt, re.M): txt = re.sub(r"^%s=.*$" % k, "%s=%s" % (k, v), txt, flags=re.M)
+        else: txt = txt.replace("[Configuration]\n", "[Configuration]\n%s=%s\n" % (k, v), 1)
+    open(TRC, "w").write(txt if txt.endswith("\n") else txt + "\n")
+
+
+def set_transparency(on):
+    _set_keys(BackgroundMode=TRANSP if on else SOLID)
+
+
+def set_opacity(pct):
+    _set_keys(BackgroundDarkness="%.2f" % (max(30, min(100, int(pct))) / 100))
+
+
+# --------------------------------------------------------------------- CLI
+def status():
+    print("fastfetch:     %s" % ("on" if fastfetch_on() else "off"))
+    print("transparência: %s (opacidade %d%%)" % ("on" if transparency_on() else "off", opacity()))
+
+
+def cli(a):
+    onoff = lambda s: {"on": True, "off": False}[s]
+    try:
+        if a[0] == "status": pass
+        elif a[0] == "fastfetch": set_fastfetch(onoff(a[1]))
+        elif a[0] == "transparency": set_transparency(onoff(a[1]))
+        elif a[0] == "opacity": set_opacity(int(a[1]))
+        else: raise ValueError
+    except (IndexError, KeyError, ValueError):
+        print(USAGE, file=sys.stderr); return 2
+    status(); return 0
+
+
+# --------------------------------------------------------------------- GUI
+def gui():
+    import gi
+    gi.require_version("Gtk", "3.0")
+    from gi.repository import Gtk
+    win = Gtk.Window(title="Terminal UniBan")
+    win.set_border_width(18); win.set_resizable(False)
+    g = Gtk.Grid(row_spacing=14, column_spacing=22); win.add(g)
+
+    def row(r, text, sub):
+        l = Gtk.Label(xalign=0); l.set_markup("<b>%s</b>\n<small>%s</small>" % (text, sub))
+        g.attach(l, 0, r, 1, 1)
+
+    row(0, "Mostrar fastfetch", "Logo e info do sistema ao abrir o terminal")
+    sw_ff = Gtk.Switch(active=fastfetch_on(), halign=Gtk.Align.END, valign=Gtk.Align.CENTER)
+    g.attach(sw_ff, 1, 0, 1, 1)
+    row(1, "Fundo transparente", "Precisa do compositor do xfwm4 (já vem ligado)")
+    sw_tr = Gtk.Switch(active=transparency_on(), halign=Gtk.Align.END, valign=Gtk.Align.CENTER)
+    g.attach(sw_tr, 1, 1, 1, 1)
+    row(2, "Opacidade do fundo", "Menos = mais transparente")
+    sc = Gtk.Scale.new_with_range(Gtk.Orientation.HORIZONTAL, 30, 100, 5)
+    sc.set_value(opacity()); sc.set_size_request(180, -1); sc.set_sensitive(sw_tr.get_active())
+    g.attach(sc, 1, 2, 1, 1)
+    note = Gtk.Label(xalign=0); note.set_markup("<small>Vale para terminais novos. Abra outro depois de mudar.</small>")
+    g.attach(note, 0, 3, 2, 1)
+
+    sw_ff.connect("notify::active", lambda s, _p: set_fastfetch(s.get_active()))
+    def on_tr(s, _p): set_transparency(s.get_active()); sc.set_sensitive(s.get_active())
+    sw_tr.connect("notify::active", on_tr)
+    sc.connect("value-changed", lambda s: set_opacity(int(s.get_value())))
+    win.connect("destroy", Gtk.main_quit); win.show_all(); Gtk.main()
+
+
+if __name__ == "__main__":
+    if len(sys.argv) > 1: sys.exit(cli(sys.argv[1:]))
+    try: gui()
+    except Exception as e:
+        print("GUI indisponível (%s). Use: uniban-terminal-config status|fastfetch|transparency|opacity" % e, file=sys.stderr); sys.exit(1)

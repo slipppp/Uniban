@@ -1,0 +1,55 @@
+#!/bin/sh
+# UniBan - paineis do Xfce: dock (baixo) SEMPRE visível + fundo transparente
+# nos dois (barra de cima e dock de baixo).
+#
+# Como: o Xfce monta o painel de quem ainda não tem config a partir de
+# /etc/xdg/xfce4/panel/default.xml (2 painéis: panel-1 = barra de cima,
+# panel-2 = dock de baixo). Esse arquivo vem do pacote xfce4-panel. Aqui o
+# hook EDITA o arquivo real do pacote (não troca por cópia velha) e:
+#   - tira autohide-behavior (o dock vem com valor 1 = esconde sozinho)
+#     e grava 0 = nunca esconde
+#   - fundo = cor sólida (background-style 1) com alpha PANEL_ALPHA
+# Rodando depois dele o apt do xfce4-panel não atrapalha (hook = por último).
+#
+# Config depois de instalado (nada de editar arquivo):
+#   Painel > clique direito > Painel > Preferências do painel
+#     - aba "Exibição": "Esconder painel automaticamente" = Nunca
+#     - aba "Aparência": Fundo = "Cor sólida"; slider de transparência
+# Alpha padrão: 0.0 = 100% transparente (0.0 a 1.0). Mude aqui se quiser
+# outro padrão pras novas contas: PANEL_ALPHA=0.3
+#
+# Transparência de verdade precisa do compositor do xfwm4 ligado
+# (use_compositing = true, gravado no hook 0030 / xfwm4.xml).
+set -e
+
+PANEL_ALPHA="0.0"
+F=/etc/xdg/xfce4/panel/default.xml
+
+[ -f "$F" ] || { echo "ERRO: $F não existe (xfce4-panel instalado?)"; exit 1; }
+cp -a "$F" "$F.orig"
+
+awk -v alpha="$PANEL_ALPHA" '
+  # joga fora o que vamos redefinir (linha única; o default não usa array de fundo)
+  /name="autohide-behavior"|name="background-style"/ { next }
+  { print }
+  /<property name="panel-[0-9]+" type="empty">/ {
+    print "      <property name=\"autohide-behavior\" type=\"uint\" value=\"0\"/>"
+    print "      <property name=\"background-style\" type=\"uint\" value=\"1\"/>"
+    print "      <property name=\"background-rgba\" type=\"array\">"
+    print "        <value type=\"double\" value=\"0\"/>"
+    print "        <value type=\"double\" value=\"0\"/>"
+    print "        <value type=\"double\" value=\"0\"/>"
+    print "        <value type=\"double\" value=\"" alpha "\"/>"
+    print "      </property>"
+  }
+' "$F.orig" > "$F"
+rm -f "$F.orig"
+
+# confere: nos 2 painéis, sem esconder e com fundo próprio
+n=$(grep -c 'name="autohide-behavior" type="uint" value="0"' "$F")
+[ "$n" -ge 2 ] || { echo "ERRO: autohide não ficou 0 nos 2 painéis ($n)"; exit 1; }
+n=$(grep -c 'name="background-style" type="uint" value="1"' "$F")
+[ "$n" -ge 2 ] || { echo "ERRO: fundo transparente não entrou nos 2 painéis ($n)"; exit 1; }
+if grep -q 'name="autohide-behavior" type="uint" value="[12]"' "$F"; then
+  echo "ERRO: sobrou autohide-behavior 1/2 no default.xml"; exit 1
+fi

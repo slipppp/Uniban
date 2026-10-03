@@ -1,0 +1,7 @@
+#!/bin/sh
+# Instalador gráfico. GTK_THEME=Arc = janela clara estilo debian-installer
+# só nesse app (o sistema continua Arc-Dark). Se faltar GTK/python-gi (exit 3)
+# cai pro instalador de terminal.
+GTK_THEME=Arc python3 /usr/share/uniban/uniban-install-gui.py "$@"
+[ $? -eq 3 ] && exec xfce4-terminal --maximize --title="Instalar UniBan" -e "sudo /usr/bin/uniban-install"
+exit 0

@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Instalar UniBan
+Comment=Instala o UniBan no disco
+Exec=/usr/bin/uniban-install-gui
+Icon=system-software-install
+Terminal=false
+Categories=System;
