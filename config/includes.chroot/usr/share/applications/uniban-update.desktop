@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Atualizar UniBan
+Comment=Verifica e instala atualizações do UniBan (GitHub Releases)
+Exec=xfce4-terminal --title="Atualizar UniBan" -e "sudo /usr/bin/uniban-update"
+Icon=system-software-update
+Terminal=false
+Categories=System;

@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=UniBan Wallpaper Fix
+Comment=Aplica o wallpaper do UniBan detectando o nome real do monitor
+Exec=/usr/share/uniban/apply-wallpaper.sh
+Hidden=false
+NoDisplay=true
+X-GNOME-Autostart-enabled=true
+OnlyShowIn=XFCE;
