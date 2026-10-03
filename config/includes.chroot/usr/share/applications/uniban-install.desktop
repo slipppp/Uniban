@@ -1,8 +1,0 @@
-[Desktop Entry]
-Type=Application
-Name=Instalar UniBan
-Comment=Instala o UniBan no disco
-Exec=xfce4-terminal --maximize --title="Instalar UniBan" -e "sudo /usr/bin/uniban-install"
-Icon=system-software-install
-Terminal=false
-Categories=System;
