@@ -1,7 +1,7 @@
 # UniBan v0.35
 
 Debian 13 (Trixie) custom, foco jogo + desempenho + baixo consumo.
-Regra do projeto: 90% Debian puro. Só remove bloat, só adiciona o essencial.
+Regra do projeto: Base Debian. Só remove bloat, só adiciona o essencial.
 
 **v0.3**: base trocada pra Debian 13 (Trixie). Hostname/terminal agora mostra "uniban" (não mais "debian"). Fastfetch instalado com cores vermelho/vermelho escuro customizadas.
 
